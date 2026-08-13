@@ -10,6 +10,8 @@
 
 A self-hosted, single-tenant work tracker for **one workspace, one team, fewer than 20 users**, running on **one server instance** with the smallest viable operational footprint. It provides team/member management, lightweight project management (specs, milestones, roadmap, credential resources), and a Trello-style issue board with live updates.
 
+Using shadcn/ui primitives and a Linear-inspired, high-density dark mode layout to minimize design overhead.
+
 **Non-goals (v3):** multi-workspace/multi-team, billing, mobile apps, third-party SSO/OAuth, file/image uploads, object storage, Redis/horizontal scaling, high availability.
 
 **Success criteria**
@@ -28,7 +30,7 @@ A self-hosted, single-tenant work tracker for **one workspace, one team, fewer t
 
 | Service | Role                                                                                                                     |
 | ------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `web`   | Next.js 15 (App Router, TS, Tailwind) + **Socket.IO (in-memory adapter)**. UI, server actions, route handlers, realtime. |
+| `web`   | Next.js 16 (App Router, TS, Tailwind) + **Socket.IO (in-memory adapter)**. UI, server actions, route handlers, realtime. |
 | `db`    | PostgreSQL 16 (persistent volume). **Only** authoritative store.                                                         |
 | `nginx` | Reverse proxy, TLS via **Let's Encrypt (certbot)**, HTTP→HTTPS, security headers, **WebSocket upgrade** `[C2]`.          |
 
