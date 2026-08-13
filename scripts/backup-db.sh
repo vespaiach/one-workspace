@@ -43,7 +43,7 @@ if ! docker compose exec -T db pg_dump \
 fi
 
 log info "Validating dump archive"
-if ! pg_restore --list "$TMP_FILE" > /dev/null 2>&1; then
+if ! docker compose exec -T db pg_restore --list < "$TMP_FILE" > /dev/null 2>&1; then
   rm -f "$TMP_FILE"
   die "Dump validation failed: pg_restore --list returned non-zero"
 fi
@@ -68,9 +68,8 @@ ls -1t "$BACKUP_DIR"/weekly-*.pgdump 2>/dev/null \
   | xargs -r rm --
 
 log info "Copying dump off-box"
-if ! scp -i "$BACKUP_SSH_KEY_FILE" \
-    -o StrictHostKeyChecking=yes \
-    -o BatchMode=yes \
+if ! rsync -e "ssh -i '$BACKUP_SSH_KEY_FILE' -o StrictHostKeyChecking=yes -o BatchMode=yes" \
+    --archive --no-relative \
     "$DAILY_FILE" \
     "$BACKUP_SSH_TARGET/$(basename "$DAILY_FILE")"; then
   die "Off-box transfer failed"

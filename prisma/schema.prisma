@@ -156,12 +156,13 @@ model Project {
 }
 
 model Spec {
-  id        String   @id @default(cuid())
-  projectId String   @unique
-  project   Project  @relation(fields: [projectId], references: [id])
+  id        String    @id @default(cuid())
+  projectId String    @unique
+  project   Project   @relation(fields: [projectId], references: [id])
   body      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 }
 
 model Milestone {
@@ -209,13 +210,14 @@ model Board {
 }
 
 model Column {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   boardId   String
-  board     Board    @relation(fields: [boardId], references: [id])
+  board     Board     @relation(fields: [boardId], references: [id])
   name      String
   rank      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   issues Issue[]
 
@@ -250,11 +252,12 @@ model Issue {
 }
 
 model Label {
-  id        String     @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
   color     String
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   issues IssueLabel[]
 }

@@ -3,12 +3,22 @@ type Meta = Record<string, unknown>
 
 const SECRET_KEY = /password|secret|token|authorization|cookie|credential.*key/i
 
+function sanitizeValue(key: string, value: unknown): unknown {
+  if (SECRET_KEY.test(key)) return '[REDACTED]'
+  if (Array.isArray(value)) return value.map((item) => sanitizeUnknown(item))
+  if (value !== null && typeof value === 'object') return sanitize(value as Meta)
+  return value
+}
+
+function sanitizeUnknown(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((item) => sanitizeUnknown(item))
+  if (value !== null && typeof value === 'object') return sanitize(value as Meta)
+  return value
+}
+
 function sanitize(meta: Meta = {}): Meta {
   return Object.fromEntries(
-    Object.entries(meta).map(([key, value]) => [
-      key,
-      SECRET_KEY.test(key) ? '[REDACTED]' : value,
-    ]),
+    Object.entries(meta).map(([key, value]) => [key, sanitizeValue(key, value)]),
   )
 }
 

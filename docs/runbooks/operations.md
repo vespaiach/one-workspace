@@ -29,7 +29,7 @@ curl http://localhost/health    # should return {"ok":true}
 All files under `/etc/one-workspace/` must be owned by `root` with mode `0600`.
 
 ```
-/etc/one-workspace/compose.env          # host env vars (POSTGRES_PASSWORD, APP_HOST, …)
+/etc/one-workspace/compose.env          # host env vars (POSTGRES_PASSWORD, DATABASE_URL, APP_HOST, …)
 /etc/one-workspace/secrets/
   nextauth_secret                       # random 32+ byte hex string
   credentials_master_key               # exactly 64 hex chars (AES-256 key)
@@ -97,7 +97,7 @@ docker compose -f compose.yml -f compose.prod.yml logs traefik | grep -i acme
 Add to `/etc/cron.d/one-workspace-backup`:
 ```cron
 0 2 * * * root BACKUP_SSH_KEY_FILE=/etc/one-workspace/secrets/backup_ssh_key \
-  BACKUP_SSH_TARGET=backup@backup-server:/backups/one-workspace \
+  BACKUP_SSH_TARGET=backup-recv@backup-server:/backups/one-workspace \
   BACKUP_DIR=/var/backups/one-workspace \
   /opt/one-workspace/scripts/backup-db.sh >> /var/log/one-workspace-backup.log 2>&1
 ```
@@ -148,7 +148,7 @@ Run after initial setup and after any major infrastructure change.
 # 1. Run the backup script manually.
 BACKUP_DIR=/tmp/restore-drill \
 BACKUP_SSH_KEY_FILE=/etc/one-workspace/secrets/backup_ssh_key \
-BACKUP_SSH_TARGET=backup@backup-server:/backups/one-workspace \
+BACKUP_SSH_TARGET=backup-recv@backup-server:/backups/one-workspace \
 ./scripts/backup-db.sh
 
 # 2. Verify the archive in isolation (no production change).
