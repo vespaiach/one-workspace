@@ -1,0 +1,10 @@
+services:
+  web:
+    environment:
+      BOOTSTRAP_ADMIN_PASSWORD_FILE: /run/secrets/bootstrap_admin_password
+    secrets:
+      - bootstrap_admin_password
+
+secrets:
+  bootstrap_admin_password:
+    file: ${BOOTSTRAP_ADMIN_PASSWORD_FILE:?Set BOOTSTRAP_ADMIN_PASSWORD_FILE}
