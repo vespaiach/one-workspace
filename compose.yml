@@ -24,7 +24,6 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://one_workspace_user:one_workspace_password@db:5432/one_workspace_db
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-local-dev-only-nextauth-secret}
       ALLOWED_EMAIL_DOMAIN: ${ALLOWED_EMAIL_DOMAIN:-}
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@localhost.test}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-local-dev-only-change-me}

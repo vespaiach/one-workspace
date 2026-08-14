@@ -31,12 +31,11 @@ All files under `/etc/one-workspace/` must be owned by `root` with mode `0600`.
 ```
 /etc/one-workspace/compose.env          # host env vars (POSTGRES_PASSWORD, DATABASE_URL, APP_HOST, …)
 /etc/one-workspace/secrets/
-  nextauth_secret                       # random 32+ byte hex string
   credentials_master_key               # exactly 64 hex chars (AES-256 key)
   smtp_password                        # SMTP account password
 ```
 
-Set `NEXTAUTH_SECRET_FILE`, `CREDENTIALS_MASTER_KEY_FILE`, `SMTP_PASSWORD_FILE` in `compose.env` to the paths above.
+Set `CREDENTIALS_MASTER_KEY_FILE` and `SMTP_PASSWORD_FILE` in `compose.env` to the paths above.
 
 The `CREDENTIALS_MASTER_KEY` file must be backed up **separately** from database dumps — a different location or medium. Losing it means permanent loss of all stored credentials.
 
