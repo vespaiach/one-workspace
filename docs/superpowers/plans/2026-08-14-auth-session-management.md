@@ -263,7 +263,8 @@ Requirements:
 - prune timestamps older than 15 minutes;
 - delete empty keys;
 - cap the map at 10,000 keys;
-- evict expired keys before rejecting new capacity; and
+- evict expired keys before rejecting new capacity;
+- return fail-closed (deny the request) when the map remains at capacity after eviction; and
 - use an `unref()` cleanup timer with a test reset hook unavailable to production imports.
 
 - [ ] **Step 2: Test real abuse paths**
@@ -275,7 +276,8 @@ Tests must cover:
 - successful-login refund;
 - simultaneous reservations;
 - TTL expiry;
-- bounded memory under unique keys; and
+- bounded memory under unique keys;
+- fail-closed when the map is at capacity and eviction yields no free slot; and
 - one office IP attacking many accounts versus many IPs attacking one account.
 
 - [ ] **Step 3: Commit**

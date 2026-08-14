@@ -9,7 +9,7 @@ type Store = Map<string, BucketEntry>
 
 const store: Store = new Map()
 
-const cleanupTimer = setInterval(() => evictExpired(store), LOGIN_WINDOW_MS).unref()
+setInterval(() => evictExpired(store), LOGIN_WINDOW_MS).unref()
 
 // Test-only reset hook — not exported from the package index, only accessible
 // by importing this file directly in tests.

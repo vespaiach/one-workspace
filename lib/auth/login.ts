@@ -57,7 +57,7 @@ export async function authenticateAndCreateSession(input: LoginInput): Promise<L
       throw new InvalidCredentialsError()
     }
 
-    const session = await createSession(user.id)
+    await createSession(user.id)
     reservation.refund()
     return { mustChangePassword: user.mustChangePassword }
   } catch (err) {

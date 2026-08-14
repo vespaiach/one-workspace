@@ -36,16 +36,16 @@ enum IssuePriority {
 }
 
 model User {
-  id                 String          @id @default(cuid())
-  email              String          @unique
-  emailVerified      DateTime?       @map("email_verified")
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  emailVerified      DateTime? @map("email_verified")
   name               String?
-  passwordHash       String          @map("password_hash")
-  avatarUrl          String?         @map("avatar_url")
-  mustChangePassword Boolean         @default(false) @map("must_change_password")
-  createdAt          DateTime        @default(now()) @map("created_at")
-  updatedAt          DateTime        @updatedAt @map("updated_at")
-  deletedAt          DateTime?       @map("deleted_at")
+  passwordHash       String    @map("password_hash")
+  avatarUrl          String?   @map("avatar_url")
+  mustChangePassword Boolean   @default(false) @map("must_change_password")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  deletedAt          DateTime? @map("deleted_at")
 
   sessions       Session[]
   memberships    Membership[]
@@ -269,11 +269,11 @@ model Issue {
 }
 
 model Label {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
   color     String
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   issues IssueLabel[]
 

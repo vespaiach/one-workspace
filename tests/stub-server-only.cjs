@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // Preload stub: neutralise server-only and mock next/headers for tests.
 const Module = require('module')
 
