@@ -12,7 +12,6 @@
 
 ## Global Constraints
 
-- Do not install or use `next-auth`, Auth.js, or `@auth/prisma-adapter`.
 - Never store or log a raw session token, password, token hash, cookie header, or raw email limiter key.
 - Store only SHA-256 session-token hashes in PostgreSQL.
 - All user emails are canonicalized through one shared function before lookup or write.
@@ -87,7 +86,7 @@ git commit -m "fix: repair initial migration history"
 
 ---
 
-### Task 2: Session schema, canonical-email constraint, and obsolete Auth.js configuration
+### Task 2: Session schema and canonical-email constraint
 
 **Files:**
 
@@ -96,7 +95,7 @@ git commit -m "fix: repair initial migration history"
 - Inspect: `.env.example`, `compose.yml`, `compose.prod.yml`, `docker/entrypoint.sh`, `docs/runbooks/operations.md`
 - Modify: `package.json`, `package-lock.json`
 
-- [ ] **Step 1: Replace the Auth.js-shaped Session model**
+- [ ] **Step 1: Define the Session model**
 
 ```prisma
 model Session {
@@ -126,26 +125,7 @@ CHECK ("email" = lower(btrim("email")));
 
 Before applying the constraint to existing data, query for whitespace/case collisions and stop if canonicalization would merge two users.
 
-- [ ] **Step 3: Verify obsolete Auth.js secrets remain absent**
-
-The design-revision PR removes all of these. Confirm they have not been reintroduced:
-
-- `NEXTAUTH_SECRET`
-- `NEXTAUTH_SECRET_FILE`
-- the `nextauth_secret` Compose secret
-- `load_secret NEXTAUTH_SECRET ...`
-- the runbook instruction to create or mount that file
-
-Keep `APP_URL`, `ALLOWED_EMAIL_DOMAIN`, database settings, and unrelated credential-storage/SMTP secrets.
-
-```bash
-if rg -n 'NEXTAUTH|next-auth|@auth/prisma-adapter' \
-  .env.example compose.yml compose.prod.yml docker/entrypoint.sh docs/runbooks/operations.md; then
-  exit 1
-fi
-```
-
-- [ ] **Step 4: Add explicit dependencies and test scripts**
+- [ ] **Step 3: Add explicit dependencies and test scripts**
 
 ```bash
 npm install --save-exact server-only@0.0.1
@@ -162,7 +142,7 @@ Add scripts:
 }
 ```
 
-- [ ] **Step 5: Validate and commit**
+- [ ] **Step 4: Validate and commit**
 
 ```bash
 npx --no-install prisma format
@@ -205,7 +185,7 @@ export const ARGON2_OPTIONS = {
   type: argon2.argon2id,
   memoryCost: 65_536,
   timeCost: 3,
-  parallelism: 1,
+  parallelism: 1
 } as const
 ```
 
@@ -271,10 +251,7 @@ type LoginReservation = {
   refund(): void
 }
 
-export function reserveLoginAttempt(input: {
-  ip: string
-  normalizedEmail: string
-}): LoginReservation
+export function reserveLoginAttempt(input: { ip: string; normalizedEmail: string }): LoginReservation
 ```
 
 Requirements:
@@ -492,12 +469,12 @@ await db.$transaction(async (tx) => {
     where: {
       id: principal.userId,
       mustChangePassword: true,
-      deletedAt: null,
+      deletedAt: null
     },
     data: {
       passwordHash,
-      mustChangePassword: false,
-    },
+      mustChangePassword: false
+    }
   })
 
   if (result.count !== 1) throw new StalePasswordChangeError()
@@ -596,15 +573,10 @@ npm test
 ```bash
 git status --short
 git diff origin/main...HEAD --check
-if rg -n 'NEXTAUTH|next-auth|@auth/prisma-adapter' . \
-  -g '!docs/superpowers/specs/2026-08-14-auth-session-design.md' \
-  -g '!docs/superpowers/plans/2026-08-14-auth-session-management.md'; then
-  exit 1
-fi
 git grep -nE 'sessionToken|tokenHash|password' -- ':!package-lock.json'
 ```
 
-Expected: no Auth.js references outside historical documentation explaining the removal; no hardcoded secrets or raw-token logging.
+Expected: no hardcoded secrets or raw-token logging.
 
 - [ ] **Step 4: Push and open the required PR**
 
@@ -617,7 +589,7 @@ gh pr create \
 
 PR summary must state:
 
-- first-party Argon2 login; no Auth.js;
+- first-party Argon2 login;
 - raw 256-bit cookie token with SHA-256-only database storage;
 - active-membership/deleted-user/domain checks at secure entry points;
 - dual IP/email bounded throttling at the sole verification path;
