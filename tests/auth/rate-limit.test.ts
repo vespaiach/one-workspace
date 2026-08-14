@@ -58,13 +58,17 @@ describe('refund', () => {
 })
 
 describe('TTL expiry', () => {
-  it('expired timestamps do not count toward the limit', async () => {
-    // Use a fresh email/IP pair, burn 5, then wait — we cannot wait real time in unit tests.
-    // Instead, patch timestamps directly. Since we can't access internal state,
-    // we verify that after a reset the bucket starts fresh.
+  it('expired timestamps do not count toward the limit', () => {
     for (let i = 0; i < 5; i++) attempt()
-    __resetForTest()
-    assert.equal(attempt().allowed, true)
+
+    const realNow = Date.now
+    try {
+      const t0 = realNow()
+      Date.now = () => t0 + 15 * 60 * 1000 + 1
+      assert.equal(attempt().allowed, true)
+    } finally {
+      Date.now = realNow
+    }
   })
 })
 
