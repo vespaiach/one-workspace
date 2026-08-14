@@ -20,7 +20,7 @@ Using shadcn/ui primitives and a Linear-inspired, high-density dark mode layout 
 - Two users on the same board see card moves within ~1s (or after reconnect).
 - Credentials are never stored or transmitted in plaintext; every reveal is audited.
 - A full DB restore from an off-box backup is demonstrated during setup.
-- Total running services: **three** (`web`, `db`, `nginx`).
+- Total running services: **three** (`web`, `db`, `traefik`).
 
 ---
 
@@ -28,35 +28,27 @@ Using shadcn/ui primitives and a Linear-inspired, high-density dark mode layout 
 
 **Single server instance.** Three processes; Postgres is the only stateful store.
 
-| Service | Role                                                                                                                     |
-| ------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `web`   | Next.js 16 (App Router, TS, Tailwind) + **Socket.IO (in-memory adapter)**. UI, server actions, route handlers, realtime. |
-| `db`    | PostgreSQL 16 (persistent volume). **Only** authoritative store.                                                         |
-| `nginx` | Reverse proxy, TLS via **Let's Encrypt (certbot)**, HTTP→HTTPS, security headers, **WebSocket upgrade** `[C2]`.          |
+| Service   | Role                                                                                                                       |
+| --------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `web`     | Next.js 16 (App Router, TS, Tailwind) + **Socket.IO (in-memory adapter)**. Custom Node HTTP server handles all traffic.   |
+| `db`      | PostgreSQL 16 (persistent volume). **Only** authoritative store.                                                           |
+| `traefik` | Reverse proxy (Traefik v3.6), TLS via **Let's Encrypt (ACME HTTP-01)**, HTTP→HTTPS, security headers, WebSocket forwarding.|
 
 No Redis. No object storage. No file uploads. **One external dependency added:** an SMTP endpoint for invite and password-reset emails (a transactional provider or the team's mail server).
 
 **Data-flow principle:** Postgres is the source of truth; WebSocket events are hints to refetch/patch. On restart/deploy, sockets drop and **clients auto-reconnect + refetch** `[H2]`.
 
+**Web service architecture:** `web` uses one custom Node HTTP server (`server.ts`) that handles Next.js App Router requests and will serve as the attachment point for in-process Socket.IO. Standalone output is intentionally not used because it cannot be combined with a custom server.
+
 ```
-Browser ──HTTPS──> nginx (TLS, WS upgrade) ──> Next.js `web`
-                                                  ├── Prisma ──> Postgres (authoritative)
-                                                  └── Socket.IO (in-memory) ──> connected clients
-```
-
-### 2.1 nginx WebSocket config (mandatory) `[C2]`
-
-The reverse-proxy location for the app **must** include:
-
-```nginx
-proxy_http_version 1.1;
-proxy_set_header Upgrade $http_upgrade;
-proxy_set_header Connection "upgrade";
-proxy_set_header Host $host;
-proxy_read_timeout 3600s;
+Browser ──HTTPS──> Traefik (TLS, auto-WS forwarding) ──> Next.js `web` (custom HTTP server)
+                                                            ├── Prisma ──> Postgres (authoritative)
+                                                            └── Socket.IO (in-memory) ──> connected clients
 ```
 
-Without these, realtime silently degrades or fails.
+### 2.1 Traefik WebSocket forwarding `[C2]`
+
+Traefik forwards WebSocket connections automatically when it detects `Upgrade: websocket` headers — no additional nginx-style directives are required. Containers are discovered via Docker provider with `exposedByDefault=false`; only containers with `traefik.enable=true` labels are routed. Local Compose binds Traefik on loopback (port 80); production adds port 443 with ACME. ACME state persists in a named Docker volume (`traefik_certs`) and renews automatically. Runbook must include a certificate expiry check (expiry silently kills the site in 90 days).
 
 ---
 
@@ -96,7 +88,8 @@ Without these, realtime silently degrades or fails.
 
 All rows carry `createdAt`, `updatedAt`; user-content entities carry nullable `deletedAt` (soft delete).
 
-- **User** — id, email (unique), name, **passwordHash (Argon2id)**, avatarUrl.
+- **User** — id, email (unique), name, **passwordHash (Argon2id)**, avatarUrl, `mustChangePassword`.
+- **Session** — persisted DB session (Auth.js Prisma adapter). Credentials-only auth slice must prove database-session integration before shipping.
 - **Workspace** / **Team** — singletons (seeded).
 - **Membership** — user↔team, `role`, `status`.
 - **Invite** — email, role, **tokenHash**, expiresAt, consumedAt.
@@ -142,7 +135,7 @@ The **only** resource type is `CREDENTIAL` (no images, no file storage). Encrypt
 
 ## 7. Security Controls
 
-- **Transport:** TLS via nginx + Let's Encrypt; HSTS; HTTP→HTTPS redirect.
+- **Transport:** TLS via Traefik + Let's Encrypt (ACME); HSTS; HTTP→HTTPS redirect.
 - **Headers:** strict `Content-Security-Policy`, `X-Content-Type-Options`, `Referrer-Policy`.
 - **CSRF** on server actions; **in-memory rate limiting** on login/invite/password-reset/credential-reveal `[H3]`. Login uses constant-time password verification and generic error messages — no account enumeration `[S1]`.
 - **Auth tokens** (invite, reset) are random, single-use, expiring, and **stored hashed at rest**; the raw token exists only in the emailed link.
@@ -155,17 +148,17 @@ The **only** resource type is `CREDENTIAL` (no images, no file storage). Encrypt
 
 ## 8. Infrastructure & Operations
 
-**Provisioning (single instance):** `web`, `db`, `nginx` (via systemd or a minimal Docker Compose), persistent volume for `db`, auto-restart on crash (`restart: unless-stopped` / systemd) `[H2]`.
+**Provisioning (single instance):** `web`, `db`, `traefik` via Docker Compose, persistent volume for `db`, auto-restart on crash (`restart: unless-stopped`) `[H2]`.
 
-**Startup:** entrypoint runs `prisma migrate deploy`, then a **seed** creating the singleton workspace/team + first admin from `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` (first-run only; the admin is required to change the password on first login).
+**Startup:** entrypoint runs `prisma migrate deploy`, then a **seed** creating the singleton workspace/team + first admin from `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` (first-run only; the admin is required to change the password on first login). Bootstrap credentials are only read when no active admin exists; subsequent restarts skip the check safely.
 
-**TLS `[M1]`:** certbot issues/renews the cert; automated `certbot renew` (cron/systemd-timer) + nginx reload. Runbook includes a renewal-health check (expiry silently kills the site in 90 days otherwise).
+**TLS `[M1]`:** Traefik handles ACME HTTP-01 certificate issuance and renewal automatically. ACME state persists in a named Docker volume (`traefik_certs`). Runbook must include a certificate expiry check.
 
 **Backups (DB only) `[C1, M2, M3]`:**
 
 - `pg_dump` to a file on a **cron** schedule.
 - Copy off-box via **`scp`/`rsync` over SSH** using a **dedicated, restricted SSH key** (own user, write-only/`command=`-restricted target — not root or a personal key) `[M3]`.
-- Retention: 7 daily / 4 weekly.
+- Retention: `BACKUP_RETENTION_DAILY` daily (default 7) / `BACKUP_RETENTION_WEEKLY` weekly (default 4).
 - **Master encryption key backed up separately** from DB dumps `[C1]`.
 - **One tested restore during setup**, with a documented runbook. (DB is the only state — no object store to snapshot.)
 
@@ -175,7 +168,7 @@ The **only** resource type is `CREDENTIAL` (no images, no file storage). Encrypt
 
 ## 9. Environment Configuration
 
-`DATABASE_URL`, `NEXTAUTH_SECRET`, `ALLOWED_EMAIL_DOMAIN` (optional), `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` (first-run only), `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `CREDENTIALS_MASTER_KEY` (file/secret, outside DB & backups), `APP_URL`, `BACKUP_SSH_TARGET`, `BACKUP_RETENTION`.
+`DATABASE_URL`, `NEXTAUTH_SECRET`, `ALLOWED_EMAIL_DOMAIN` (optional), `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` (first-run only; can be supplied via `BOOTSTRAP_ADMIN_PASSWORD_FILE`), `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` (also `SMTP_PASSWORD_FILE`), `SMTP_FROM`, `CREDENTIALS_MASTER_KEY` (file/secret via `CREDENTIALS_MASTER_KEY_FILE`, outside DB & backups), `APP_URL`, `APP_HOST` (domain for Traefik routing), `TRAEFIK_ACME_EMAIL` (required in production), `TRAEFIK_BIND_ADDRESS` (loopback in dev, public IP in production), `BACKUP_SSH_TARGET`, `BACKUP_SSH_KEY_FILE`, `BACKUP_RETENTION_DAILY` (default 7), `BACKUP_RETENTION_WEEKLY` (default 4).
 
 ---
 

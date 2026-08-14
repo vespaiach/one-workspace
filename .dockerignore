@@ -1,0 +1,10 @@
+.git
+.next
+node_modules
+.env*
+!.env.example
+secrets
+backups
+docs
+temp
+npm-debug.log*
