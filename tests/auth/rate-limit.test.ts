@@ -81,9 +81,7 @@ describe('bounded memory', () => {
     }
     // At capacity: a brand-new key must be denied (fail-closed)
     const r = attempt('9.9.9.9', 'newuser@x.com')
-    // Either allowed (if eviction freed space for expired entries) or denied.
-    // The important invariant: we did not throw and the map size is bounded.
-    assert.ok(typeof r.allowed === 'boolean')
+    assert.equal(r.allowed, false)
   })
 
   it('fail-closed when map is at capacity and eviction yields no free slot', () => {
