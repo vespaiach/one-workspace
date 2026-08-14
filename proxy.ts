@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { SESSION_COOKIE_LOCAL, SESSION_COOKIE_SECURE } from '@/lib/auth/constants'
 
-const PUBLIC_PATHS = new Set(['/login', '/health'])
+const PUBLIC_PATHS = new Set(['/login', '/forgot-password', '/reset-password', '/health'])
 
 // Plausible base64url length for 32 random bytes
 const MIN_TOKEN_LEN = 40

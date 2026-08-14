@@ -32,3 +32,24 @@ export class ForbiddenError extends Error {
     this.name = 'ForbiddenError'
   }
 }
+
+export class InvalidInviteTokenError extends Error {
+  constructor() {
+    super('Invalid, expired, or already-used invite token')
+    this.name = 'InvalidInviteTokenError'
+  }
+}
+
+export class LastAdminError extends Error {
+  constructor() {
+    super('Cannot remove or demote the last admin')
+    this.name = 'LastAdminError'
+  }
+}
+
+export class InviteValidationError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'InviteValidationError'
+  }
+}
