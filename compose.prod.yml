@@ -5,7 +5,7 @@ services:
 
   web:
     environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/one_workspace
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL to the percent-encoded PostgreSQL connection URI}
       NEXTAUTH_SECRET: ""
       CREDENTIALS_MASTER_KEY: ""
       SMTP_PASSWORD: ""

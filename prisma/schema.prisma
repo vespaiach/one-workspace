@@ -268,7 +268,7 @@ model Issue {
 }
 
 model Label {
-  id        String     @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
   color     String
   createdAt DateTime   @default(now()) @map("created_at")

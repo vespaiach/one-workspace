@@ -29,11 +29,9 @@ load_secret CREDENTIALS_MASTER_KEY "${CREDENTIALS_MASTER_KEY_FILE:-}"
 load_secret SMTP_PASSWORD "${SMTP_PASSWORD_FILE:-}"
 load_secret BOOTSTRAP_ADMIN_PASSWORD "${BOOTSTRAP_ADMIN_PASSWORD_FILE:-}"
 
-log 'Running migrations'
-./node_modules/.bin/prisma migrate deploy
-
-log 'Running bootstrap seed'
-./node_modules/.bin/prisma db seed
-
-log 'Starting Next.js'
-exec ./node_modules/.bin/tsx server.ts
+log 'Dropping privileges to nextjs'
+exec gosu nextjs sh -eu -c '
+  ./node_modules/.bin/prisma migrate deploy
+  ./node_modules/.bin/prisma db seed
+  exec ./node_modules/.bin/tsx server.ts
+'

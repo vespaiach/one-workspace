@@ -46,7 +46,7 @@ done
 [ -r "$DUMP_FILE" ] || die "Dump file is not readable: $DUMP_FILE"
 
 log info "Validating archive"
-pg_restore --list "$DUMP_FILE" > /dev/null 2>&1 || die "Archive validation failed"
+docker compose exec -T db pg_restore --list < "$DUMP_FILE" > /dev/null 2>&1 || die "Archive validation failed"
 
 VERIFY_DB="one_workspace_restore_verify_$$"
 
