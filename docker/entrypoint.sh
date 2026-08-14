@@ -24,7 +24,6 @@ load_secret() {
   export "$name=$value"
 }
 
-load_secret NEXTAUTH_SECRET "${NEXTAUTH_SECRET_FILE:-}"
 load_secret CREDENTIALS_MASTER_KEY "${CREDENTIALS_MASTER_KEY_FILE:-}"
 load_secret SMTP_PASSWORD "${SMTP_PASSWORD_FILE:-}"
 load_secret BOOTSTRAP_ADMIN_PASSWORD "${BOOTSTRAP_ADMIN_PASSWORD_FILE:-}"

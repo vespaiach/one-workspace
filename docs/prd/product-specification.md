@@ -56,9 +56,10 @@ Traefik forwards WebSocket connections automatically when it detects `Upgrade: w
 
 ### 3.1 Auth
 
-- **Email + password** via the Auth.js Credentials provider. Passwords hashed with **Argon2id** (never stored or logged in plaintext).
-- **Sessions: DB-backed** via the Auth.js Prisma adapter (no Redis) — HTTP-only, `Secure`, `SameSite=Lax` cookies.
-- **Optional domain restriction:** config `ALLOWED_EMAIL_DOMAIN` limits which emails an admin may invite.
+- **Email + password** via a first-party, server-only authentication service. Passwords are hashed with **Argon2id** and never stored or logged in plaintext.
+- **Sessions: DB-backed opaque tokens** (no Redis). The browser receives a 256-bit random HTTP-only cookie; Postgres stores only its SHA-256 hash. Production cookies are `Secure`, `SameSite=Lax`, `Path=/`, and use the `__Host-` prefix.
+- **Optional domain restriction:** `ALLOWED_EMAIL_DOMAIN` is enforced consistently during bootstrap, invitation, login, and secure session validation. A configuration change denies now-ineligible existing sessions on their next secure request.
+- **Authorization boundary:** Next.js Proxy provides optimistic redirects only. Protected Server Actions, Route Handlers, data access, layouts, and Socket.IO entry points independently validate the session, non-deleted user, and `ACTIVE` membership.
 
 ### 3.2 Invite & activation (email-driven)
 
@@ -89,7 +90,7 @@ Traefik forwards WebSocket connections automatically when it detects `Upgrade: w
 All rows carry `createdAt`, `updatedAt`; user-content entities carry nullable `deletedAt` (soft delete).
 
 - **User** — id, email (unique), name, **passwordHash (Argon2id)**, avatarUrl, `mustChangePassword`.
-- **Session** — persisted DB session (Auth.js Prisma adapter). Credentials-only auth slice must prove database-session integration before shipping.
+- **Session** — id, userId, unique `tokenHash` (SHA-256 of the raw cookie token), `expiresAt`, createdAt, updatedAt. The raw bearer token exists only in the browser cookie.
 - **Workspace** / **Team** — singletons (seeded).
 - **Membership** — user↔team, `role`, `status`.
 - **Invite** — email, role, **tokenHash**, expiresAt, consumedAt.
@@ -137,9 +138,9 @@ The **only** resource type is `CREDENTIAL` (no images, no file storage). Encrypt
 
 - **Transport:** TLS via Traefik + Let's Encrypt (ACME); HSTS; HTTP→HTTPS redirect.
 - **Headers:** strict `Content-Security-Policy`, `X-Content-Type-Options`, `Referrer-Policy`.
-- **CSRF** on server actions; **in-memory rate limiting** on login/invite/password-reset/credential-reveal `[H3]`. Login uses constant-time password verification and generic error messages — no account enumeration `[S1]`.
-- **Auth tokens** (invite, reset) are random, single-use, expiring, and **stored hashed at rest**; the raw token exists only in the emailed link.
-- **AuthZ** on every request and socket join.
+- **CSRF** protection from same-origin Server Actions; **bounded in-memory rate limiting** on login/invite/password-reset/credential-reveal `[H3]`. Login reserves independent trusted-IP and normalized-email buckets at the sole password-verification path, uses Argon2id verification, and returns generic credential errors `[S1]`.
+- **Auth tokens** (session, invite, reset) are random, expiring, and **stored hashed at rest**. Invite/reset tokens are single-use; session tokens are revoked on logout, password change/reset, suspension, or removal.
+- **AuthZ** is checked close to every protected action/data operation and on socket connection/join; Proxy is not the sole security boundary.
 - **Secrets** per §5 `[C1, M5]`.
 - **Audit log** for sensitive actions; **soft deletes** for recoverability.
 - **Reduced attack surface:** no file uploads → no upload/XSS-via-file/storage-exhaustion class of risks.
@@ -168,7 +169,7 @@ The **only** resource type is `CREDENTIAL` (no images, no file storage). Encrypt
 
 ## 9. Environment Configuration
 
-`DATABASE_URL`, `NEXTAUTH_SECRET`, `ALLOWED_EMAIL_DOMAIN` (optional), `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` (first-run only; can be supplied via `BOOTSTRAP_ADMIN_PASSWORD_FILE`), `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` (also `SMTP_PASSWORD_FILE`), `SMTP_FROM`, `CREDENTIALS_MASTER_KEY` (file/secret via `CREDENTIALS_MASTER_KEY_FILE`, outside DB & backups), `APP_URL`, `APP_HOST` (domain for Traefik routing), `TRAEFIK_ACME_EMAIL` (required in production), `TRAEFIK_BIND_ADDRESS` (loopback in dev, public IP in production), `BACKUP_SSH_TARGET`, `BACKUP_SSH_KEY_FILE`, `BACKUP_RETENTION_DAILY` (default 7), `BACKUP_RETENTION_WEEKLY` (default 4).
+`DATABASE_URL`, `ALLOWED_EMAIL_DOMAIN` (optional), `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` (first-run only; can be supplied via `BOOTSTRAP_ADMIN_PASSWORD_FILE`), `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` (also `SMTP_PASSWORD_FILE`), `SMTP_FROM`, `CREDENTIALS_MASTER_KEY` (file/secret via `CREDENTIALS_MASTER_KEY_FILE`, outside DB & backups), `APP_URL`, `APP_HOST` (domain for Traefik routing), `TRAEFIK_ACME_EMAIL` (required in production), `TRAEFIK_BIND_ADDRESS` (loopback in dev, public IP in production), `BACKUP_SSH_TARGET`, `BACKUP_SSH_KEY_FILE`, `BACKUP_RETENTION_DAILY` (default 7), `BACKUP_RETENTION_WEEKLY` (default 4).
 
 ---
 
