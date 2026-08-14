@@ -1,13 +1,11 @@
 import 'server-only'
+import { isIP } from 'node:net'
 import type { ReadonlyHeaders } from 'next/dist/server/web/spec-extension/adapters/headers'
 
 const UNKNOWN_BUCKET = 'unknown'
-const IPV4_RE = /^(\d{1,3}\.){3}\d{1,3}$/
-const IPV6_RE = /^[0-9a-f:]+$/i
 
 function isValidIp(s: string): boolean {
-  const trimmed = s.trim()
-  return IPV4_RE.test(trimmed) || IPV6_RE.test(trimmed)
+  return isIP(s.trim()) !== 0
 }
 
 export function getTrustedClientIp(headers: ReadonlyHeaders | Headers): string {
