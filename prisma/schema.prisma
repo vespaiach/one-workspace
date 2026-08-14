@@ -38,14 +38,14 @@ enum IssuePriority {
 model User {
   id                 String          @id @default(cuid())
   email              String          @unique
-  emailVerified      DateTime?
+  emailVerified      DateTime?       @map("email_verified")
   name               String?
-  passwordHash       String
-  avatarUrl          String?
-  mustChangePassword Boolean         @default(false)
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
-  deletedAt          DateTime?
+  passwordHash       String          @map("password_hash")
+  avatarUrl          String?         @map("avatar_url")
+  mustChangePassword Boolean         @default(false) @map("must_change_password")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+  deletedAt          DateTime?       @map("deleted_at")
 
   sessions       Session[]
   memberships    Membership[]
@@ -54,98 +54,107 @@ model User {
   assignedIssues Issue[]         @relation("IssueAssignee")
   comments       Comment[]
   auditLogs      AuditLog[]
+
+  @@map("users")
 }
 
 model Session {
   id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expires      DateTime
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@index([userId])
+  @@map("sessions")
 }
 
 model Workspace {
   id        String   @id
   name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   teams Team[]
+
+  @@map("workspaces")
 }
 
 model Team {
   id          String    @id
-  workspaceId String
+  workspaceId String    @map("workspace_id")
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
   name        String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   memberships Membership[]
   projects    Project[]
 
   @@index([workspaceId])
+  @@map("teams")
 }
 
 model Membership {
   id        String       @id @default(cuid())
-  userId    String
+  userId    String       @map("user_id")
   user      User         @relation(fields: [userId], references: [id])
-  teamId    String
+  teamId    String       @map("team_id")
   team      Team         @relation(fields: [teamId], references: [id])
   role      MemberRole
   status    MemberStatus @default(ACTIVE)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
 
   @@unique([userId, teamId])
   @@index([teamId, role, status])
+  @@map("memberships")
 }
 
 model Invite {
   id          String     @id @default(cuid())
   email       String
   role        MemberRole
-  tokenHash   String     @unique
-  expiresAt   DateTime
-  consumedAt  DateTime?
-  createdById String
+  tokenHash   String     @unique @map("token_hash")
+  expiresAt   DateTime   @map("expires_at")
+  consumedAt  DateTime?  @map("consumed_at")
+  createdById String     @map("created_by_id")
   createdBy   User       @relation("InviteCreatedBy", fields: [createdById], references: [id])
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
 
   @@index([email])
   @@index([createdById])
+  @@map("invites")
 }
 
 model PasswordReset {
   id         String    @id @default(cuid())
-  userId     String
+  userId     String    @map("user_id")
   user       User      @relation(fields: [userId], references: [id])
-  tokenHash  String    @unique
-  expiresAt  DateTime
-  consumedAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
 
   @@index([userId])
+  @@map("password_resets")
 }
 
 model Project {
   id          String    @id @default(cuid())
-  teamId      String
+  teamId      String    @map("team_id")
   team        Team      @relation(fields: [teamId], references: [id])
   name        String
   key         String    @unique
   description String?
-  archivedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  archivedAt  DateTime? @map("archived_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
 
   spec       Spec?
   milestones Milestone[]
@@ -153,92 +162,100 @@ model Project {
   board      Board?
 
   @@index([teamId])
+  @@map("projects")
 }
 
 model Spec {
   id        String   @id @default(cuid())
-  projectId String   @unique
+  projectId String   @unique @map("project_id")
   project   Project  @relation(fields: [projectId], references: [id])
   body      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("specs")
 }
 
 model Milestone {
   id        String          @id @default(cuid())
-  projectId String
+  projectId String          @map("project_id")
   project   Project         @relation(fields: [projectId], references: [id])
   title     String
-  dueDate   DateTime?
+  dueDate   DateTime?       @map("due_date")
   status    MilestoneStatus @default(PLANNED)
   rank      String
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+  deletedAt DateTime?       @map("deleted_at")
 
   issues Issue[]
 
   @@unique([projectId, rank])
   @@index([projectId, status])
+  @@map("milestones")
 }
 
 model Resource {
   id         String       @id @default(cuid())
-  projectId  String
+  projectId  String       @map("project_id")
   project    Project      @relation(fields: [projectId], references: [id])
   type       ResourceType @default(CREDENTIAL)
   name       String
   ciphertext String
   iv         String
-  authTag    String
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-  deletedAt  DateTime?
+  authTag    String       @map("auth_tag")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+  deletedAt  DateTime?    @map("deleted_at")
 
   @@index([projectId])
+  @@map("resources")
 }
 
 model Board {
   id        String   @id @default(cuid())
-  projectId String   @unique
+  projectId String   @unique @map("project_id")
   project   Project  @relation(fields: [projectId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   columns Column[]
+
+  @@map("boards")
 }
 
 model Column {
   id        String   @id @default(cuid())
-  boardId   String
+  boardId   String   @map("board_id")
   board     Board    @relation(fields: [boardId], references: [id])
   name      String
   rank      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   issues Issue[]
 
   @@unique([id, boardId])
   @@unique([boardId, rank])
+  @@map("columns")
 }
 
 model Issue {
   id          String        @id @default(cuid())
-  boardId     String
-  columnId    String
+  boardId     String        @map("board_id")
+  columnId    String        @map("column_id")
   column      Column        @relation(fields: [columnId, boardId], references: [id, boardId])
   title       String
   description String?
-  assigneeId  String?
+  assigneeId  String?       @map("assignee_id")
   assignee    User?         @relation("IssueAssignee", fields: [assigneeId], references: [id])
   priority    IssuePriority @default(NO_PRIORITY)
-  milestoneId String?
+  milestoneId String?       @map("milestone_id")
   milestone   Milestone?    @relation(fields: [milestoneId], references: [id])
   rank        String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  deletedAt   DateTime?
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  deletedAt   DateTime?     @map("deleted_at")
 
   labels   IssueLabel[]
   comments Comment[]
@@ -247,56 +264,62 @@ model Issue {
   @@index([boardId])
   @@index([assigneeId])
   @@index([milestoneId])
+  @@map("issues")
 }
 
 model Label {
   id        String     @id @default(cuid())
   name      String
   color     String
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
 
   issues IssueLabel[]
+
+  @@map("labels")
 }
 
 model IssueLabel {
-  issueId   String
+  issueId   String   @map("issue_id")
   issue     Issue    @relation(fields: [issueId], references: [id])
-  labelId   String
+  labelId   String   @map("label_id")
   label     Label    @relation(fields: [labelId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@id([issueId, labelId])
   @@index([labelId])
+  @@map("issue_labels")
 }
 
 model Comment {
   id        String    @id @default(cuid())
-  issueId   String
+  issueId   String    @map("issue_id")
   issue     Issue     @relation(fields: [issueId], references: [id])
-  authorId  String
+  authorId  String    @map("author_id")
   author    User      @relation(fields: [authorId], references: [id])
   body      String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
   @@index([issueId])
   @@index([authorId])
+  @@map("comments")
 }
 
 model AuditLog {
   id         String   @id @default(cuid())
-  actorId    String
+  actorId    String   @map("actor_id")
   actor      User     @relation(fields: [actorId], references: [id])
   action     String
-  entityType String
-  entityId   String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
   metadata   Json?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@index([actorId])
   @@index([entityType, entityId])
+  @@map("audit_logs")
 }

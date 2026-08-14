@@ -1,6 +1,8 @@
 #!/bin/sh
 set -eu
 
+export PATH="/app/node_modules/.bin:$PATH"
+
 log() {
   printf '{"level":"info","message":"%s","timestamp":"%s"}\n' \
     "$1" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
