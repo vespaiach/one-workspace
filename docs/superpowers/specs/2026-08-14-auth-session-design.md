@@ -8,7 +8,7 @@
 
 ## 1. Overview
 
-One Workspace uses a first-party authentication and session layer built with Next.js, Node.js `crypto`, Argon2id, Prisma, and PostgreSQL. Auth.js and `@auth/prisma-adapter` are not used.
+One Workspace uses a first-party authentication and session layer built with Next.js, Node.js `crypto`, Argon2id, Prisma, and PostgreSQL.
 
 The design provides:
 
@@ -76,15 +76,13 @@ Changing the environment value therefore denies existing sessions belonging to u
 
 No authentication dependency is added. Existing packages provide the required primitives:
 
-| Package/API | Purpose |
-| --- | --- |
-| `argon2` `0.45.1` | Password hashing and verification |
-| `node:crypto` | Random session tokens, SHA-256 token hashes, email-key hashes |
-| Prisma `6.19.3` | Session/user/membership transactions and queries |
-| Next.js `16.3.0` | Server Actions, cookies, headers, Proxy |
-| React `19.2.8` | `useActionState` login and password forms |
-
-`next-auth` and `@auth/prisma-adapter` must not be installed.
+| Package/API       | Purpose                                                       |
+| ----------------- | ------------------------------------------------------------- |
+| `argon2` `0.45.1` | Password hashing and verification                             |
+| `node:crypto`     | Random session tokens, SHA-256 token hashes, email-key hashes |
+| Prisma `6.19.3`   | Session/user/membership transactions and queries              |
+| Next.js `16.3.0`  | Server Actions, cookies, headers, Proxy                       |
+| React `19.2.8`    | `useActionState` login and password forms                     |
 
 ---
 
@@ -92,7 +90,7 @@ No authentication dependency is added. Existing packages provide the required pr
 
 ### 4.1 Session model
 
-The current Auth.js-shaped `Session.sessionToken` and `Session.expires` fields are replaced with names that describe the first-party contract:
+The `Session` model:
 
 ```prisma
 model Session {
@@ -137,17 +135,17 @@ Acceptance requires `prisma migrate deploy` against an empty PostgreSQL database
 
 ## 5. Server-Only Modules
 
-| File | Responsibility |
-| --- | --- |
-| `lib/auth/constants.ts` | Cookie names, seven-day lifetime, Argon2 parameters |
-| `lib/auth/email.ts` | Canonical email and allowed-domain parsing |
-| `lib/auth/password.ts` | Password validation, hashing, dummy verification, rehash checks |
-| `lib/auth/session.ts` | Token generation/hashing, cookie options, session CRUD |
-| `lib/auth/authorization.ts` | `getSessionPrincipal`, `requireActiveMember`, `requireAdmin` |
-| `lib/auth/rate-limit.ts` | Bounded dual-bucket reservation/refund limiter |
-| `lib/auth/client-ip.ts` | Traefik-aware client-IP extraction |
-| `lib/auth/login.ts` | Single authoritative password-verification and session-creation service |
-| `lib/auth/errors.ts` | Typed expected auth errors; no secret-bearing messages |
+| File                        | Responsibility                                                          |
+| --------------------------- | ----------------------------------------------------------------------- |
+| `lib/auth/constants.ts`     | Cookie names, seven-day lifetime, Argon2 parameters                     |
+| `lib/auth/email.ts`         | Canonical email and allowed-domain parsing                              |
+| `lib/auth/password.ts`      | Password validation, hashing, dummy verification, rehash checks         |
+| `lib/auth/session.ts`       | Token generation/hashing, cookie options, session CRUD                  |
+| `lib/auth/authorization.ts` | `getSessionPrincipal`, `requireActiveMember`, `requireAdmin`            |
+| `lib/auth/rate-limit.ts`    | Bounded dual-bucket reservation/refund limiter                          |
+| `lib/auth/client-ip.ts`     | Traefik-aware client-IP extraction                                      |
+| `lib/auth/login.ts`         | Single authoritative password-verification and session-creation service |
+| `lib/auth/errors.ts`        | Typed expected auth errors; no secret-bearing messages                  |
 
 Each module imports `server-only` where appropriate. Client Components receive minimal serializable DTOs, never Prisma records or token values.
 
@@ -223,19 +221,19 @@ Expected credential/policy failures return exactly `"Invalid credentials"`. Infr
 
 ## 9. Session Cookie
 
-| Property | Production | Local HTTP |
-| --- | --- | --- |
-| Name | `__Host-one-workspace-session` | `one-workspace-session` |
-| `HttpOnly` | `true` | `true` |
-| `Secure` | `true` | `false` |
-| `SameSite` | `Lax` | `Lax` |
-| `Path` | `/` | `/` |
-| `Domain` | omitted | omitted |
-| `Max-Age` | 604800 seconds | 604800 seconds |
+| Property   | Production                     | Local HTTP              |
+| ---------- | ------------------------------ | ----------------------- |
+| Name       | `__Host-one-workspace-session` | `one-workspace-session` |
+| `HttpOnly` | `true`                         | `true`                  |
+| `Secure`   | `true`                         | `false`                 |
+| `SameSite` | `Lax`                          | `Lax`                   |
+| `Path`     | `/`                            | `/`                     |
+| `Domain`   | omitted                        | omitted                 |
+| `Max-Age`  | 604800 seconds                 | 604800 seconds          |
 
 `__Host-` is used only when `Secure=true`. Cookie construction lives in one module and is covered by unit and HTTPS-through-Traefik integration tests.
 
-No session secret is required. The design-revision change removes `NEXTAUTH_SECRET`, `NEXTAUTH_SECRET_FILE`, Auth.js host-trust settings, and the mounted `nextauth_secret` file from project configuration and the operations runbook.
+No session secret is required.
 
 ---
 
@@ -335,13 +333,13 @@ It is idempotent: missing, expired, or already-deleted sessions still clear cook
 
 Authentication uses:
 
-| Variable | Required | Meaning |
-| --- | --- | --- |
-| `DATABASE_URL` | Yes | PostgreSQL connection |
-| `ALLOWED_EMAIL_DOMAIN` | No | Canonical domain enforced at seed/invite/login/session guard |
-| `BOOTSTRAP_ADMIN_EMAIL` | First seed only | Must satisfy the configured domain |
-| `BOOTSTRAP_ADMIN_PASSWORD` or file variant | First seed only | Initial password removed after bootstrap |
-| `APP_URL` | Yes in production | Canonical origin for safe redirects and links |
+| Variable                                   | Required          | Meaning                                                      |
+| ------------------------------------------ | ----------------- | ------------------------------------------------------------ |
+| `DATABASE_URL`                             | Yes               | PostgreSQL connection                                        |
+| `ALLOWED_EMAIL_DOMAIN`                     | No                | Canonical domain enforced at seed/invite/login/session guard |
+| `BOOTSTRAP_ADMIN_EMAIL`                    | First seed only   | Must satisfy the configured domain                           |
+| `BOOTSTRAP_ADMIN_PASSWORD` or file variant | First seed only   | Initial password removed after bootstrap                     |
+| `APP_URL`                                  | Yes in production | Canonical origin for safe redirects and links                |
 
 `APP_URL` must be parsed and validated during startup. Production must use HTTPS. Traefik remains the only externally reachable path to the web service.
 
