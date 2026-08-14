@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { PrismaClient } from '@prisma/client'
 import argon2 from 'argon2'
+import { createHash, randomBytes } from 'node:crypto'
 
 const db = new PrismaClient({
   datasources: { db: { url: process.env.DATABASE_URL } }
@@ -43,6 +44,7 @@ test.beforeAll(async () => {
 })
 
 test.beforeEach(async () => {
+  await db.passwordReset.deleteMany({})
   await db.session.deleteMany({})
   await db.membership.deleteMany({})
   await db.user.deleteMany({})
@@ -50,6 +52,7 @@ test.beforeEach(async () => {
 })
 
 test.afterAll(async () => {
+  await db.passwordReset.deleteMany({})
   await db.session.deleteMany({})
   await db.membership.deleteMany({})
   await db.user.deleteMany({})
@@ -156,4 +159,57 @@ test('session cookie is present after login and cleared after logout', async ({ 
 test('passwordChanged=1 banner is not shown on a plain /login visit', async ({ page }) => {
   await page.goto('/login')
   await expect(page.getByRole('status')).not.toBeVisible()
+})
+
+test('forgot-password returns the generic response for an unknown email', async ({ page }) => {
+  await page.goto('/forgot-password')
+  await page.fill('input[name="email"]', 'unknown@example.com')
+  await page.click('button[type="submit"]')
+
+  await expect(page.getByRole('status')).toHaveText(
+    "If that email is registered, you'll receive a link"
+  )
+})
+
+test('reset-password shows a clear error for an invalid token', async ({ page }) => {
+  await page.goto('/reset-password?token=invalid-token')
+
+  await expect(page.getByRole('alert')).toHaveText(
+    'This password reset link is invalid, expired, or already used.'
+  )
+})
+
+test('valid reset changes the password, consumes the token, and requires login', async ({ page }) => {
+  const user = await createUser('reset-browser@example.com', 'OldPassword1!')
+  const rawToken = randomBytes(32).toString('base64url')
+  const reset = await db.passwordReset.create({
+    data: {
+      userId: user.id,
+      tokenHash: createHash('sha256').update(rawToken, 'utf8').digest('hex'),
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000)
+    }
+  })
+  await db.session.create({
+    data: {
+      userId: user.id,
+      tokenHash: 'c'.repeat(64),
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000)
+    }
+  })
+
+  await page.goto(`/reset-password?token=${rawToken}`)
+  await page.fill('input[name="newPassword"]', 'NewBrowserPassword1!')
+  await page.fill('input[name="confirmPassword"]', 'NewBrowserPassword1!')
+  await page.click('button[type="submit"]')
+
+  await expect(page).toHaveURL(/\/login\?passwordReset=1/)
+  await expect(page.getByRole('status')).toContainText('Password reset')
+  await expect.poll(() => db.session.count({ where: { userId: user.id } })).toBe(0)
+  const consumed = await db.passwordReset.findUniqueOrThrow({ where: { id: reset.id } })
+  expect(consumed.consumedAt).not.toBeNull()
+
+  await page.fill('input[name="email"]', 'reset-browser@example.com')
+  await page.fill('input[name="password"]', 'NewBrowserPassword1!')
+  await page.click('button[type="submit"]')
+  await expect(page).toHaveURL('/')
 })
