@@ -78,12 +78,8 @@ describe('bounded memory', () => {
     for (let i = 0; i < 5_000; i++) {
       attempt(`192.168.${Math.floor(i / 256)}.${i % 256}`, `u${i}@x.com`)
     }
-    // The store now has up to 10,000 keys (5000 ip + 5000 email hashes).
-    // Fill remaining slots with unique emails sharing a common IP
-    for (let i = 5_000; i < 5_000; i++) {
-      attempt(`10.0.0.1`, `extra${i}@x.com`)
-    }
-    // At capacity: a brand-new key must be denied (fail-closed)
+    // The store now has 10,000 keys (5,000 ip + 5,000 email hashes) — at capacity.
+    // A brand-new unique key must be denied (fail-closed).
     const r = attempt('9.9.9.9', 'newuser@x.com')
     assert.equal(r.allowed, false)
   })
