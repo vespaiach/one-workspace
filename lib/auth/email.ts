@@ -1,4 +1,3 @@
-import 'server-only'
 import { domainToASCII } from 'url'
 
 type EmailResult = { ok: true; email: string } | { ok: false }
